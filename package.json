@@ -1,0 +1,15 @@
+{
+  "name": "emqx5-mysql-service",
+  "version": "1.0.0",
+  "description": "EMQX5 Mysql Service",
+  "author": "Widhaprasa Waliprana <widhaprasa@gmail.com>",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.16.1",
+    "mysql": "^2.18.1",
+    "underscore": "^1.12.1"
+  }
+}
