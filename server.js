@@ -18,9 +18,9 @@ const _mysqlConfig = {};
 _mysqlConfig.host =
   process.env.MYSQL_HOST != null
     ? process.env.MYSQL_HOST
-    : "m2mdev.tritronik.com";
+    : "localhost";
 _mysqlConfig.port =
-  process.env.MYSQL_PORT != null ? process.env.MYSQL_PORT : 43307;
+  process.env.MYSQL_PORT != null ? process.env.MYSQL_PORT : 3306;
 _mysqlConfig.database =
   process.env.MYSQL_DB != null ? process.env.MYSQL_DB : "emqx_mysql";
 _mysqlConfig.user =
@@ -378,10 +378,6 @@ _app.post("/user/update/acl", (req, res) => {
   // Validate acls
   const publishAcl = _parse.parseAcl(body.publish_acl);
   const subscribeAcl = _parse.parseAcl(body.subscribe_acl);
-  if (publishAcl == null || subscribeAcl == null) {
-    res.sendStatus(400);
-    return;
-  }
 
   _mysqlPool.getConnection((err, connection) => {
     if (err) {

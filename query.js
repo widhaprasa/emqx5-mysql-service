@@ -42,7 +42,7 @@ function listAccount(mysqlConnection, listener, callback) {
 // Account Exist
 function accountExist(mysqlConnection, listener, username, callback) {
   username = username.trim();
-  const searchSql = `SELECT listener, username, FROM ${_userTable} WHERE listener = '${listener}' AND username = '${username}'`;
+  const searchSql = `SELECT listener, username FROM ${_userTable} WHERE listener = '${listener}' AND username = '${username}'`;
   mysqlConnection.query(searchSql, function (err, result) {
     if (err) {
       callback(-1);
@@ -112,7 +112,7 @@ function deleteAccountByGroup(mysqlConnection, listener, group, callback) {
       callback(-1);
       return;
     }
-    
+
     const deleteAclSql = `DELETE FROM ${_aclTable} WHERE listener = '${listener}' AND group_ = '${group}'`;
     mysqlConnection.query(deleteAclSql, function (err, result) {
       if (err) {
@@ -234,7 +234,7 @@ function createUser(
       publishAcl,
       subscribeAcl
     );
-    if (insertAclsSql === null) {
+    if (insertAclsSql == null) {
       callback(0);
       return;
     }
@@ -302,13 +302,23 @@ function updateAclUser(
       publishAcl,
       subscribeAcl
     );
-    if (insertAclsSql === null) {
+    if (insertAclsSql == null) {
+      callback(0);
+      return;
+    }
+
+    const deleteAclSql = buildDeleteAclSql(
+      listener,
+      username,
+      publishAcl,
+      subscribeAcl
+    );
+    if (deleteAclSql == null) {
       callback(0);
       return;
     }
 
     // Clear acls first
-    const deleteAclSql = `DELETE FROM ${_aclTable} WHERE listener = '${listener}' AND username = '${username}'`;
     mysqlConnection.query(deleteAclSql, function (err, result) {
       if (err) {
         callback(-3);
@@ -337,33 +347,37 @@ function buildInsertAclSql(
   let values = "";
 
   // Publish
-  const publishTopicSet = new Set();
-  for (let i = 0; i < publishAcl.length; ++i) {
-    const topic = publishAcl[i];
-    if (publishTopicSet.has(topic)) {
-      continue;
-    }
-    publishTopicSet.add(topic);
+  if (publishAcl != null) {
+    const publishTopicSet = new Set();
+    for (let i = 0; i < publishAcl.length; ++i) {
+      const topic = publishAcl[i];
+      if (publishTopicSet.has(topic)) {
+        continue;
+      }
+      publishTopicSet.add(topic);
 
-    if ("" !== values) {
-      values += ", ";
+      if ("" !== values) {
+        values += ", ";
+      }
+      values += `('${listener}', '${group}', '${username}', 'allow', 'publish', '${topic}')`;
     }
-    values += `('${listener}', '${group}', '${username}', 'allow', 'publish', '${topic}')`;
   }
 
   // Subscribe
-  const subscribeTopicSet = new Set();
-  for (let i = 0; i < subscribeAcl.length; ++i) {
-    const topic = subscribeAcl[i];
-    if (subscribeTopicSet.has(topic)) {
-      continue;
-    }
-    subscribeTopicSet.add(topic);
+  if (subscribeAcl != null) {
+    const subscribeTopicSet = new Set();
+    for (let i = 0; i < subscribeAcl.length; ++i) {
+      const topic = subscribeAcl[i];
+      if (subscribeTopicSet.has(topic)) {
+        continue;
+      }
+      subscribeTopicSet.add(topic);
 
-    if ("" !== values) {
-      values += ", ";
+      if ("" !== values) {
+        values += ", ";
+      }
+      values += `('${listener}', '${group}', '${username}', 'allow', 'subscribe', '${topic}')`;
     }
-    values += `('${listener}', '${group}', '${username}', 'allow', 'subscribe', '${topic}')`;
   }
 
   if ("" === values) {
@@ -374,6 +388,17 @@ function buildInsertAclSql(
     `INSERT INTO ${_aclTable} (listener, group_, username, permission, action, topic) VALUES ` +
     values
   );
+}
+
+function buildDeleteAclSql(listener, username, publishAcl, subscribeAcl) {
+  if (publishAcl != null && subscribeAcl != null) {
+    return `DELETE FROM ${_aclTable} WHERE listener = '${listener}' AND username = '${username}'`;
+  } else if (publishAcl != null) {
+    return `DELETE FROM ${_aclTable} WHERE listener = '${listener}' AND username = '${username}' AND action = 'publish'`;
+  } else if (subscribeAcl != null) {
+    return `DELETE FROM ${_aclTable} WHERE listener = '${listener}' AND username = '${username}' AND action = 'subscribe'`;
+  }
+  return null;
 }
 
 module.exports = {
