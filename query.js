@@ -227,18 +227,6 @@ function createUser(
       return;
     }
 
-    const insertAclsSql = buildInsertAclSql(
-      listener,
-      username,
-      group,
-      publishAcl,
-      subscribeAcl
-    );
-    if (insertAclsSql == null) {
-      callback(0);
-      return;
-    }
-
     const sha256 = buildSha256(password);
     const insertSql =
       `INSERT INTO ${_userTable} (listener, group_, username, password_hash, created) ` +
@@ -259,6 +247,18 @@ function createUser(
         }
 
         // Add new acls
+        const insertAclsSql = buildInsertAclSql(
+          listener,
+          username,
+          group,
+          publishAcl,
+          subscribeAcl
+        );
+        if (insertAclsSql == null) {
+          callback(0);
+          return;
+        }
+
         mysqlConnection.query(insertAclsSql, function (err, result) {
           if (err) {
             callback(-5);
@@ -295,18 +295,6 @@ function updateAclUser(
     }
     const group = result[0].group_;
 
-    const insertAclsSql = buildInsertAclSql(
-      listener,
-      username,
-      group,
-      publishAcl,
-      subscribeAcl
-    );
-    if (insertAclsSql == null) {
-      callback(0);
-      return;
-    }
-
     const deleteAclSql = buildDeleteAclSql(
       listener,
       username,
@@ -326,6 +314,18 @@ function updateAclUser(
       }
 
       // Add new acls
+      const insertAclsSql = buildInsertAclSql(
+        listener,
+        username,
+        group,
+        publishAcl,
+        subscribeAcl
+      );
+      if (insertAclsSql == null) {
+        callback(0);
+        return;
+      }
+
       mysqlConnection.query(insertAclsSql, function (err, result) {
         if (err) {
           callback(-4);
