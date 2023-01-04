@@ -369,7 +369,7 @@ _app.post("/user/update/acl", (req, res) => {
     listener = body.listener;
   }
 
-  if (!_.isString(body.username) || !_.isString(body.group)) {
+  if (!_.isString(body.username)) {
     res.sendStatus(400);
     return;
   }
