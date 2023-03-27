@@ -64,7 +64,7 @@ function updatePasswordAccount(
   password = password.trim();
 
   const sha256 = buildSha256(password);
-  const updateSql = `UPDATE ${_userTable} SET password = '${sha256}' WHERE listener = '${listener}' AND username = '${username}'`;
+  const updateSql = `UPDATE ${_userTable} SET password_hash = '${sha256}' WHERE listener = '${listener}' AND username = '${username}'`;
 
   mysqlConnection.query(updateSql, function (err, result) {
     if (err) {
