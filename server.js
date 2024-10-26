@@ -30,7 +30,14 @@ _mysqlConfig.password =
     ? process.env.MYSQL_PASSWORD
     : "emqx_mysql";
 
+// MySQL connection
 const _mysqlPool = _mysql.createPool(_mysqlConfig);
+_mysqlPool.getConnection((err, connection) => {
+  if (err) {
+    console.error("Error connecting to MySQL:", err.message);
+    process.exit(1);
+  }
+});
 
 // Query
 const _query = require("./query.js");
@@ -43,13 +50,17 @@ const _app = _express();
 
 // Add authentication
 const auth = (req, res, next) => {
+  if (req.path === "/health") {
+    return next();
+  }
+
   if (!_.isString(_authUsername) && !_.isString(_authPassword)) {
     return next();
   }
 
   const authHeader = req.headers["Authorization"];
   if (!authHeader) {
-    return res.status(401);
+    return res.sendStatus(401);
   }
 
   const base64Credentials = authHeader.split(" ")[1];
@@ -59,7 +70,7 @@ const auth = (req, res, next) => {
   if (username === _authUsername && password === _authPassword) {
     return next();
   } else {
-    return res.status(401);
+    return res.sendStatus(401);
   }
 };
 _app.use(auth);
