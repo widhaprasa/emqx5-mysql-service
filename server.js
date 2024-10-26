@@ -10,15 +10,15 @@ const _ = require("underscore");
 
 // Env
 const _listener =
-  process.env.mountpoint != null ? process.env.DEFAULT_LISTENER : "";
+  process.env.DEFAULT_LISTENER != null ? process.env.DEFAULT_LISTENER : "";
+const _authUsername = process.env.AUTH_USERNAME;
+const _authPassword = process.env.AUTH_PASSWORD;
 
 // Env MySQL
 const _mysql = require("mysql");
 const _mysqlConfig = {};
 _mysqlConfig.host =
-  process.env.MYSQL_HOST != null
-    ? process.env.MYSQL_HOST
-    : "localhost";
+  process.env.MYSQL_HOST != null ? process.env.MYSQL_HOST : "localhost";
 _mysqlConfig.port =
   process.env.MYSQL_PORT != null ? process.env.MYSQL_PORT : 3306;
 _mysqlConfig.database =
@@ -40,6 +40,30 @@ const _parse = require("./parse.js");
 
 // App
 const _app = _express();
+
+// Add authentication
+const auth = (req, res, next) => {
+  if (!_.isString(_authUsername) && !_.isString(_authPassword)) {
+    return next();
+  }
+
+  const authHeader = req.headers["Authorization"];
+  if (!authHeader) {
+    return res.status(401);
+  }
+
+  const base64Credentials = authHeader.split(" ")[1];
+  const credentials = Buffer.from(base64Credentials, "base64").toString("utf");
+  const [username, password] = credentials.split(":");
+
+  if (username === _authUsername && password === _authPassword) {
+    return next();
+  } else {
+    return res.status(401);
+  }
+};
+_app.use(auth);
+
 _app.use(_express.json());
 
 _app.get("/health", (req, res) => {
