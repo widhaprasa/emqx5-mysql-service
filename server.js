@@ -58,13 +58,13 @@ const auth = (req, res, next) => {
     return next();
   }
 
-  const authHeader = req.headers["Authorization"];
+  const authHeader = req.headers["authorization"];
   if (!authHeader) {
     return res.sendStatus(401);
   }
 
   const base64Credentials = authHeader.split(" ")[1];
-  const credentials = Buffer.from(base64Credentials, "base64").toString("utf");
+  const credentials = Buffer.from(base64Credentials, "base64").toString("utf-8");
   const [username, password] = credentials.split(":");
 
   if (username === _authUsername && password === _authPassword) {
