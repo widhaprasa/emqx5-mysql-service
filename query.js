@@ -16,8 +16,13 @@ function buildSha256(password) {
 }
 
 // Count Account
-function countAccount(mysqlConnection, listener, callback) {
-  const searchSql = `SELECT count(username) FROM ${_userTable} WHERE listener = '${listener}'`;
+function countAccount(mysqlConnection, listener, group, callback) {
+  let searchSql;
+  if (group != null) {
+    searchSql = `SELECT count(username) FROM ${_userTable} WHERE listener = '${listener}' AND group_ = '${group}'`;
+  } else {
+    searchSql = `SELECT count(username) FROM ${_userTable} WHERE listener = '${listener}'`;
+  }
   mysqlConnection.query(searchSql, function (err, result) {
     if (err) {
       callback(0);
@@ -28,8 +33,13 @@ function countAccount(mysqlConnection, listener, callback) {
 }
 
 // List Account
-function listAccount(mysqlConnection, listener, callback) {
-  const searchSql = `SELECT username FROM ${_userTable} WHERE listener = '${listener}'`;
+function listAccount(mysqlConnection, listener, group, callback) {
+  let searchSql;
+  if (group != null) {
+    searchSql = `SELECT username FROM ${_userTable} WHERE listener = '${listener}' AND group_ = '${group}'`;
+  } else {
+    searchSql = `SELECT username FROM ${_userTable} WHERE listener = '${listener}'`;
+  }
   mysqlConnection.query(searchSql, function (err, result) {
     if (err) {
       callback([]);

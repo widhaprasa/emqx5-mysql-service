@@ -87,6 +87,7 @@ _app.get("/account/count", (req, res) => {
   if (_.isString(query.listener)) {
     listener = query.listener;
   }
+  const group = _.isString(query.group) ? query.group : null;
 
   _mysqlPool.getConnection((err, connection) => {
     if (err) {
@@ -94,7 +95,7 @@ _app.get("/account/count", (req, res) => {
       return;
     }
 
-    _query.countAccount(connection, listener, function (result) {
+    _query.countAccount(connection, listener, group, function (result) {
       connection.release();
       res.send("" + result);
     });
@@ -107,13 +108,14 @@ _app.get("/account/list", (req, res) => {
   if (_.isString(query.listener)) {
     listener = query.listener;
   }
+  const group = _.isString(query.group) ? query.group : null;
 
   _mysqlPool.getConnection((err, connection) => {
     if (err) {
       res.sendStatus(500);
       return;
     }
-    _query.listAccount(connection, listener, function (result) {
+    _query.listAccount(connection, listener, group, function (result) {
       connection.release();
       const arr = [];
       for (let i in result) {
