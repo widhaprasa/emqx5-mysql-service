@@ -1,14 +1,19 @@
 const crypto = require("crypto");
 
+function resolveTableName(value, fallback) {
+  const name = value != null ? value : fallback;
+  if (!/^[A-Za-z0-9_]+$/.test(name)) {
+    throw new Error("Invalid MySQL table name: " + name);
+  }
+  return name;
+}
+
 // Env
-const _userTable =
-  process.env.MYSQL_USER_TABLE != null
-    ? process.env.MYSQL_USER_TABLE
-    : "mqtt_user";
-const _aclTable =
-  process.env.MYSQL_ACL_TABLE != null
-    ? process.env.MYSQL_ACL_TABLE
-    : "mqtt_acl";
+const _userTable = resolveTableName(
+  process.env.MYSQL_USER_TABLE,
+  "mqtt_user"
+);
+const _aclTable = resolveTableName(process.env.MYSQL_ACL_TABLE, "mqtt_acl");
 
 // SHA256
 function buildSha256(password) {
@@ -18,12 +23,15 @@ function buildSha256(password) {
 // Count Account
 function countAccount(mysqlConnection, listener, group, callback) {
   let searchSql;
+  let values;
   if (group != null) {
-    searchSql = `SELECT count(username) FROM ${_userTable} WHERE listener = '${listener}' AND group_ = '${group}'`;
+    searchSql = `SELECT count(username) FROM ${_userTable} WHERE listener = ? AND group_ = ?`;
+    values = [listener, group];
   } else {
-    searchSql = `SELECT count(username) FROM ${_userTable} WHERE listener = '${listener}'`;
+    searchSql = `SELECT count(username) FROM ${_userTable} WHERE listener = ?`;
+    values = [listener];
   }
-  mysqlConnection.query(searchSql, function (err, result) {
+  mysqlConnection.query(searchSql, values, function (err, result) {
     if (err) {
       callback(0);
       return;
@@ -35,12 +43,15 @@ function countAccount(mysqlConnection, listener, group, callback) {
 // List Account
 function listAccount(mysqlConnection, listener, group, callback) {
   let searchSql;
+  let values;
   if (group != null) {
-    searchSql = `SELECT username FROM ${_userTable} WHERE listener = '${listener}' AND group_ = '${group}'`;
+    searchSql = `SELECT username FROM ${_userTable} WHERE listener = ? AND group_ = ?`;
+    values = [listener, group];
   } else {
-    searchSql = `SELECT username FROM ${_userTable} WHERE listener = '${listener}'`;
+    searchSql = `SELECT username FROM ${_userTable} WHERE listener = ?`;
+    values = [listener];
   }
-  mysqlConnection.query(searchSql, function (err, result) {
+  mysqlConnection.query(searchSql, values, function (err, result) {
     if (err) {
       callback([]);
       return;
@@ -52,8 +63,11 @@ function listAccount(mysqlConnection, listener, group, callback) {
 // Account Exist
 function accountExist(mysqlConnection, listener, username, callback) {
   username = username.trim();
-  const searchSql = `SELECT listener, username FROM ${_userTable} WHERE listener = '${listener}' AND username = '${username}'`;
-  mysqlConnection.query(searchSql, function (err, result) {
+  const searchSql = `SELECT listener, username FROM ${_userTable} WHERE listener = ? AND username = ?`;
+  mysqlConnection.query(searchSql, [listener, username], function (
+    err,
+    result
+  ) {
     if (err) {
       callback(-1);
       return;
@@ -74,35 +88,39 @@ function updatePasswordAccount(
   password = password.trim();
 
   const sha256 = buildSha256(password);
-  const updateSql = `UPDATE ${_userTable} SET password_hash = '${sha256}' WHERE listener = '${listener}' AND username = '${username}'`;
+  const updateSql = `UPDATE ${_userTable} SET password_hash = ? WHERE listener = ? AND username = ?`;
 
-  mysqlConnection.query(updateSql, function (err, result) {
-    if (err) {
-      callback(-1);
-      return;
-    }
+  mysqlConnection.query(
+    updateSql,
+    [sha256, listener, username],
+    function (err, result) {
+      if (err) {
+        callback(-1);
+        return;
+      }
 
-    if (result.affectedRows != 1) {
-      callback(-2);
-      return;
+      if (result.affectedRows != 1) {
+        callback(-2);
+        return;
+      }
+      callback(0);
     }
-    callback(0);
-  });
+  );
 }
 
 // Delete Account
 function deleteAccount(mysqlConnection, listener, username, callback) {
   username = username.trim();
 
-  const deleteSql = `DELETE FROM ${_userTable} WHERE listener = '${listener}' AND username = '${username}'`;
-  mysqlConnection.query(deleteSql, function (err, result) {
+  const deleteSql = `DELETE FROM ${_userTable} WHERE listener = ? AND username = ?`;
+  mysqlConnection.query(deleteSql, [listener, username], function (err) {
     if (err) {
       callback(-1);
       return;
     }
 
-    const deleteAclSql = `DELETE FROM ${_aclTable} WHERE listener = '${listener}' AND username = '${username}'`;
-    mysqlConnection.query(deleteAclSql, function (err, result) {
+    const deleteAclSql = `DELETE FROM ${_aclTable} WHERE listener = ? AND username = ?`;
+    mysqlConnection.query(deleteAclSql, [listener, username], function (err) {
       if (err) {
         callback(-2);
         return;
@@ -116,15 +134,15 @@ function deleteAccount(mysqlConnection, listener, username, callback) {
 function deleteAccountByGroup(mysqlConnection, listener, group, callback) {
   group = group.trim();
 
-  const deleteSql = `DELETE FROM ${_userTable} WHERE listener = '${listener}' AND group_ = '${group}'`;
-  mysqlConnection.query(deleteSql, function (err, result) {
+  const deleteSql = `DELETE FROM ${_userTable} WHERE listener = ? AND group_ = ?`;
+  mysqlConnection.query(deleteSql, [listener, group], function (err) {
     if (err) {
       callback(-1);
       return;
     }
 
-    const deleteAclSql = `DELETE FROM ${_aclTable} WHERE listener = '${listener}' AND group_ = '${group}'`;
-    mysqlConnection.query(deleteAclSql, function (err, result) {
+    const deleteAclSql = `DELETE FROM ${_aclTable} WHERE listener = ? AND group_ = ?`;
+    mysqlConnection.query(deleteAclSql, [listener, group], function (err) {
       if (err) {
         callback(-2);
         return;
@@ -136,15 +154,15 @@ function deleteAccountByGroup(mysqlConnection, listener, group, callback) {
 
 // Clear Account
 function clearAccount(mysqlConnection, listener, callback) {
-  const deleteSql = `DELETE FROM ${_userTable} WHERE listener = '${listener}'`;
-  mysqlConnection.query(deleteSql, function (err, result) {
+  const deleteSql = `DELETE FROM ${_userTable} WHERE listener = ?`;
+  mysqlConnection.query(deleteSql, [listener], function (err) {
     if (err) {
       callback(-1);
       return;
     }
 
-    const deleteAclSql = `DELETE FROM ${_aclTable} WHERE listener = '${listener}'`;
-    mysqlConnection.query(deleteAclSql, function (err, result) {
+    const deleteAclSql = `DELETE FROM ${_aclTable} WHERE listener = ?`;
+    mysqlConnection.query(deleteAclSql, [listener], function (err) {
       if (err) {
         callback(-2);
         return;
@@ -156,8 +174,8 @@ function clearAccount(mysqlConnection, listener, callback) {
 
 // List Super User
 function listSU(mysqlConnection, listener, callback) {
-  const searchSql = `SELECT username FROM ${_userTable} WHERE listener = '${listener}' AND group_ = 'su'`;
-  mysqlConnection.query(searchSql, function (err, result) {
+  const searchSql = `SELECT username FROM ${_userTable} WHERE listener = ? AND group_ = 'su'`;
+  mysqlConnection.query(searchSql, [listener], function (err, result) {
     if (err) {
       callback([]);
       return;
@@ -171,8 +189,11 @@ function createSU(mysqlConnection, listener, username, password, callback) {
   username = username.trim();
   password = password.trim();
 
-  const searchSql = `SELECT * FROM ${_userTable} WHERE listener = '${listener}' AND username = '${username}'`;
-  mysqlConnection.query(searchSql, function (err, result) {
+  const searchSql = `SELECT * FROM ${_userTable} WHERE listener = ? AND username = ?`;
+  mysqlConnection.query(searchSql, [listener, username], function (
+    err,
+    result
+  ) {
     if (err) {
       callback(-1);
       return;
@@ -186,22 +207,26 @@ function createSU(mysqlConnection, listener, username, password, callback) {
     const sha256 = buildSha256(password);
     const insertSql =
       `INSERT INTO ${_userTable} (listener, group_, username, password_hash, is_superuser, created) ` +
-      `VALUES ('${listener}', 'su', '${username}', '${sha256}', 1, NOW())`;
+      `VALUES (?, 'su', ?, ?, 1, NOW())`;
 
-    mysqlConnection.query(insertSql, function (err, result) {
-      if (err) {
-        callback(-3);
-        return;
+    mysqlConnection.query(
+      insertSql,
+      [listener, username, sha256],
+      function (err) {
+        if (err) {
+          callback(-3);
+          return;
+        }
+        callback(0);
       }
-      callback(0);
-    });
+    );
   });
 }
 
 // List User
 function listUser(mysqlConnection, listener, callback) {
-  const searchSql = `SELECT username FROM ${_userTable} WHERE listener = '${listener}' AND group_ != 'su'`;
-  mysqlConnection.query(searchSql, function (err, result) {
+  const searchSql = `SELECT username FROM ${_userTable} WHERE listener = ? AND group_ != 'su'`;
+  mysqlConnection.query(searchSql, [listener], function (err, result) {
     if (err) {
       callback([]);
       return;
@@ -225,8 +250,11 @@ function createUser(
   group = group.trim();
   password = password.trim();
 
-  const searchSql = `SELECT * FROM ${_userTable} WHERE listener = '${listener}' AND username = '${username}'`;
-  mysqlConnection.query(searchSql, function (err, result) {
+  const searchSql = `SELECT * FROM ${_userTable} WHERE listener = ? AND username = ?`;
+  mysqlConnection.query(searchSql, [listener, username], function (
+    err,
+    result
+  ) {
     if (err) {
       callback(-1);
       return;
@@ -240,44 +268,52 @@ function createUser(
     const sha256 = buildSha256(password);
     const insertSql =
       `INSERT INTO ${_userTable} (listener, group_, username, password_hash, created) ` +
-      `VALUES ('${listener}', '${group}', '${username}', '${sha256}', NOW())`;
+      `VALUES (?, ?, ?, ?, NOW())`;
 
-    mysqlConnection.query(insertSql, function (err, result) {
-      if (err) {
-        callback(-3);
-        return;
-      }
-
-      // Clear acls first
-      const deleteAclSql = `DELETE FROM ${_aclTable} WHERE listener = '${listener}' AND username = '${username}'`;
-      mysqlConnection.query(deleteAclSql, function (err, result) {
+    mysqlConnection.query(
+      insertSql,
+      [listener, group, username, sha256],
+      function (err) {
         if (err) {
-          callback(-4);
+          callback(-3);
           return;
         }
 
-        // Add new acls
-        const insertAclsSql = buildInsertAclSql(
-          listener,
-          username,
-          group,
-          publishAcl,
-          subscribeAcl
-        );
-        if (insertAclsSql == null) {
-          callback(0);
-          return;
-        }
-
-        mysqlConnection.query(insertAclsSql, function (err, result) {
+        // Clear acls first
+        const deleteAclSql = `DELETE FROM ${_aclTable} WHERE listener = ? AND username = ?`;
+        mysqlConnection.query(deleteAclSql, [listener, username], function (
+          err
+        ) {
           if (err) {
-            callback(-5);
+            callback(-4);
             return;
           }
-          callback(0);
+
+          // Add new acls
+          const insertAcls = buildInsertAclSql(
+            listener,
+            username,
+            group,
+            publishAcl,
+            subscribeAcl
+          );
+          if (insertAcls == null) {
+            callback(0);
+            return;
+          }
+
+          mysqlConnection.query(insertAcls.sql, insertAcls.values, function (
+            err
+          ) {
+            if (err) {
+              callback(-5);
+              return;
+            }
+            callback(0);
+          });
         });
-      });
-    });
+      }
+    );
   });
 }
 
@@ -292,8 +328,11 @@ function updateAclUser(
 ) {
   username = username.trim();
 
-  const searchSql = `SELECT * FROM ${_userTable} WHERE listener = '${listener}' AND username = '${username}'`;
-  mysqlConnection.query(searchSql, function (err, result) {
+  const searchSql = `SELECT * FROM ${_userTable} WHERE listener = ? AND username = ?`;
+  mysqlConnection.query(searchSql, [listener, username], function (
+    err,
+    result
+  ) {
     if (err) {
       callback(-1);
       return;
@@ -305,38 +344,40 @@ function updateAclUser(
     }
     const group = result[0].group_;
 
-    const deleteAclSql = buildDeleteAclSql(
+    const deleteAcl = buildDeleteAclSql(
       listener,
       username,
       publishAcl,
       subscribeAcl
     );
-    if (deleteAclSql == null) {
+    if (deleteAcl == null) {
       callback(0);
       return;
     }
 
     // Clear acls first
-    mysqlConnection.query(deleteAclSql, function (err, result) {
+    mysqlConnection.query(deleteAcl.sql, deleteAcl.values, function (err) {
       if (err) {
         callback(-3);
         return;
       }
 
       // Add new acls
-      const insertAclsSql = buildInsertAclSql(
+      const insertAcls = buildInsertAclSql(
         listener,
         username,
         group,
         publishAcl,
         subscribeAcl
       );
-      if (insertAclsSql == null) {
+      if (insertAcls == null) {
         callback(0);
         return;
       }
 
-      mysqlConnection.query(insertAclsSql, function (err, result) {
+      mysqlConnection.query(insertAcls.sql, insertAcls.values, function (
+        err
+      ) {
         if (err) {
           callback(-4);
           return;
@@ -354,7 +395,8 @@ function buildInsertAclSql(
   publishAcl,
   subscribeAcl
 ) {
-  let values = "";
+  const rows = [];
+  const values = [];
 
   // Publish
   if (publishAcl != null) {
@@ -366,10 +408,8 @@ function buildInsertAclSql(
       }
       publishTopicSet.add(topic);
 
-      if ("" !== values) {
-        values += ", ";
-      }
-      values += `('${listener}', '${group}', '${username}', 'allow', 'publish', '${topic}')`;
+      rows.push("(?, ?, ?, 'allow', 'publish', ?)");
+      values.push(listener, group, username, topic);
     }
   }
 
@@ -383,30 +423,38 @@ function buildInsertAclSql(
       }
       subscribeTopicSet.add(topic);
 
-      if ("" !== values) {
-        values += ", ";
-      }
-      values += `('${listener}', '${group}', '${username}', 'allow', 'subscribe', '${topic}')`;
+      rows.push("(?, ?, ?, 'allow', 'subscribe', ?)");
+      values.push(listener, group, username, topic);
     }
   }
 
-  if ("" === values) {
+  if (rows.length === 0) {
     return null;
   }
 
-  return (
-    `INSERT INTO ${_aclTable} (listener, group_, username, permission, action, topic) VALUES ` +
-    values
-  );
+  return {
+    sql:
+      `INSERT INTO ${_aclTable} (listener, group_, username, permission, action, topic) VALUES ` +
+      rows.join(", "),
+    values,
+  };
 }
 
 function buildDeleteAclSql(listener, username, publishAcl, subscribeAcl) {
+  const baseSql = `DELETE FROM ${_aclTable} WHERE listener = ? AND username = ?`;
+
   if (publishAcl != null && subscribeAcl != null) {
-    return `DELETE FROM ${_aclTable} WHERE listener = '${listener}' AND username = '${username}'`;
+    return { sql: baseSql, values: [listener, username] };
   } else if (publishAcl != null) {
-    return `DELETE FROM ${_aclTable} WHERE listener = '${listener}' AND username = '${username}' AND action = 'publish'`;
+    return {
+      sql: baseSql + " AND action = ?",
+      values: [listener, username, "publish"],
+    };
   } else if (subscribeAcl != null) {
-    return `DELETE FROM ${_aclTable} WHERE listener = '${listener}' AND username = '${username}' AND action = 'subscribe'`;
+    return {
+      sql: baseSql + " AND action = ?",
+      values: [listener, username, "subscribe"],
+    };
   }
   return null;
 }

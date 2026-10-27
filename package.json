@@ -5,11 +5,15 @@
   "author": "Widhaprasa Waliprana <widhaprasa@gmail.com>",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
-    "express": "^4.16.1",
-    "mysql": "^2.18.1",
-    "underscore": "^1.12.1"
+    "express": "^4.22.3",
+    "mysql2": "^3.24.6",
+    "underscore": "^1.13.8"
   }
 }

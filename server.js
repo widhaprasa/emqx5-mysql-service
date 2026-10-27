@@ -2,8 +2,10 @@
 
 // Express
 const _express = require("express");
-const EXPRESS_PORT = 3000;
-const EXPRESS_HOST = "0.0.0.0";
+
+// Listen config
+const _config = require("./config.js");
+const _listen = _config.resolveListenConfig();
 
 // Underscore
 const _ = require("underscore");
@@ -15,7 +17,7 @@ const _authUsername = process.env.AUTH_USERNAME;
 const _authPassword = process.env.AUTH_PASSWORD;
 
 // Env MySQL
-const _mysql = require("mysql");
+const _mysql = require("mysql2");
 const _mysqlConfig = {};
 _mysqlConfig.host =
   process.env.MYSQL_HOST != null ? process.env.MYSQL_HOST : "localhost";
@@ -32,11 +34,16 @@ _mysqlConfig.password =
 
 // MySQL connection
 const _mysqlPool = _mysql.createPool(_mysqlConfig);
+_mysqlPool.on("error", (err) => {
+  console.error("MySQL pool error:", err.message);
+});
 _mysqlPool.getConnection((err, connection) => {
   if (err) {
     console.error("Error connecting to MySQL:", err.message);
     process.exit(1);
+    return;
   }
+  connection.release();
 });
 
 // Query
@@ -63,9 +70,27 @@ const auth = (req, res, next) => {
     return res.sendStatus(401);
   }
 
-  const base64Credentials = authHeader.split(" ")[1];
-  const credentials = Buffer.from(base64Credentials, "base64").toString("utf-8");
-  const [username, password] = credentials.split(":");
+  const parts = authHeader.split(" ");
+  if (parts.length !== 2 || parts[0].toLowerCase() !== "basic") {
+    return res.sendStatus(401);
+  }
+
+  const base64Credentials = parts[1];
+  if (!base64Credentials) {
+    return res.sendStatus(401);
+  }
+
+  const credentials = Buffer.from(
+    base64Credentials,
+    "base64"
+  ).toString("utf-8");
+  const separator = credentials.indexOf(":");
+  if (separator < 0) {
+    return res.sendStatus(401);
+  }
+
+  const username = credentials.slice(0, separator);
+  const password = credentials.slice(separator + 1);
 
   if (username === _authUsername && password === _authPassword) {
     return next();
@@ -440,10 +465,10 @@ _app.post("/user/update/acl", (req, res) => {
 });
 
 // Main
-_app.listen(EXPRESS_PORT, EXPRESS_HOST, function () {
+_app.listen(_listen.port, _listen.host, function () {
   console.log("##################################################");
   console.log("");
-  console.log("Listening on " + EXPRESS_HOST + ":" + EXPRESS_PORT);
+  console.log("Listening on " + _listen.host + ":" + _listen.port);
   console.log("");
   console.log("##################################################");
 });

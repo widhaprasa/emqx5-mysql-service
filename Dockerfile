@@ -1,5 +1,5 @@
 # Base image
-FROM node:10.24.1-alpine3.11
+FROM node:lts-alpine
 
 # Add curl
 RUN apk --no-cache add curl
@@ -12,9 +12,8 @@ WORKDIR /usr/src/app
 # where available (npm@5+)
 COPY package*.json ./
 
-# RUN npm install
-# If you are building your code for production
-RUN npm ci --only=production
+# Install production dependencies
+RUN npm ci --omit=dev
 
 # Bundle app source
 COPY . .
